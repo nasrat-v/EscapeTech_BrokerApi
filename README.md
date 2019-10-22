@@ -1,5 +1,7 @@
 # EscapeTech_BrokerApi
-API to communicate with various IoT object to create an Escape Gameh
+API to communicate with various IoT object to create an Escape Game
+
+## Using Scripts
 
 ### BLE Communication
 To communicate over Bluetooth (BLE) with BlueST IoT device : https://github.com/nasrat-v/ControlSTMicroelectronicsDevice
