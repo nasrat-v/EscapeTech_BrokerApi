@@ -3,9 +3,6 @@ const colorReset = '\x1b[0m';
 const colorRed = '\x1b[31m';
 const colorGreen = '\x1b[32m';
 const colorYellow = '\x1b[33m';
-const colorBlue = '\x1b[34m';
-const colorMagenta = '\x1b[45m';
-const colorWhite = '\x1b[47m';
 const dpsLight = [20];
 const dpsSocket = [1, 27];
 
@@ -23,7 +20,7 @@ var deviceSocket = new tuyApi({
 });
 
 var hostname = '192.168.2.6';
-var port = 3000;
+var port = 3000
  
 var app = express();
 var myRouter = express.Router();
@@ -41,7 +38,7 @@ myRouter.route('/')
 
 myRouter.route('/turnOnLight')
 .get(function(req, res) {
-	console.log('\n<< Turn Light request >>');
+	console.log('\n[Light request]');
 	(async() => {
 		var status = await tuyaDeviceSetStatus(true, deviceLight, dpsLight);
 		res.json({message : status, methode : req.method});
@@ -50,7 +47,7 @@ myRouter.route('/turnOnLight')
 
 myRouter.route('/turnOffLight')
 .get(function(req, res) {
-	console.log('\n<< Turn light request >>');
+	console.log('\n[Light request]');
 	(async() => {
 		var status = await tuyaDeviceSetStatus(false, deviceLight, dpsLight);
 		res.json({message : status, methode : req.method});
@@ -59,7 +56,7 @@ myRouter.route('/turnOffLight')
 
 myRouter.route('/getStatusLight')
 .get(function(req, res) {
-	console.log('\n<< Status light request >>');
+	console.log('\n[Light request]');
 	(async() => {
 		var status = await tuyaDeviceGetStatus(deviceLight, dpsLight);
 		res.json({message : status, methode : req.method});
@@ -68,7 +65,7 @@ myRouter.route('/getStatusLight')
 
 myRouter.route('/turnOnSocket')
 .get(function(req, res) {
-	console.log('\n<< Turn socket request >>');
+	console.log('\n[Socket request]');
 	(async() => {
 		var status = await tuyaDeviceSetStatus(true, deviceSocket, dpsSocket);
 		res.json({message : status, methode : req.method});
@@ -77,7 +74,7 @@ myRouter.route('/turnOnSocket')
 
 myRouter.route('/turnOffSocket')
 .get(function(req, res) {
-	console.log('\n<< Turn socket request >>');
+	console.log('\n[Socket request]');
 	(async() => {
 		var status = await tuyaDeviceSetStatus(false, deviceSocket, dpsSocket);
 		res.json({message : status, methode : req.method});
@@ -86,16 +83,17 @@ myRouter.route('/turnOffSocket')
 
 myRouter.route('/getStatusSocket')
 .get(function(req, res) {
-	console.log('\n<< Status socket request >>');
+	console.log('\n[Socket request]');
 	(async() => {
 		var status = await tuyaDeviceGetStatus(deviceSocket, dpsSocket);
 		res.json({message : status, methode : req.method});
 	})();
 })
 
-app.use(myRouter);  
+setEventListener();
+app.use(myRouter);
 app.listen(port, hostname, function(){
-	console.log('Server launched http://' + hostname + ':' + port); 
+	console.log('Server launched\nListen on http://' + hostname + ':' + port); 
 });
 
 /***************************************************
@@ -104,22 +102,39 @@ app.listen(port, hostname, function(){
  * 
  * *************************************************/
 
+function setEventListener() {
+	tuyaDeviceSetEventListener(deviceLight);
+	tuyaDeviceSetEventListener(deviceSocket);
+}
+
+ function tuyaDeviceSetEventListener(device) {
+	device.on('error', error => {
+		console.error(`Error from device: '${ device.id }'`, error)
+		tuyaDeviceReset(device);
+	});
+	device.on('connected', () => console.log('Connected to device'));
+	device.on('disconnected', () => console.log('Disconnected from device'));
+}
+
 async function tuyaDeviceInit(device) {
 	await device.find();
 	console.log('Device found');
-	await device.connect();
-	console.log('Connected to device');
+	try {
+		await device.connect();
+	} catch(error) {
+		console.error(`Connection failed: ${error}`);
+		tuyaDeviceReset();
+	}
 }
 
 function tuyaDeviceReset(device) {
 	device.disconnect();
-	console.log('Disconnected from device');
 }
 
 async function tuyaDeviceSetStatus(newStatus, device, dpsNums) {
 	var currentStatus;
 
-	logStatus(newStatus);
+	logStatus('New status: ', newStatus);
 	await tuyaDeviceInit(device);
 
 	await device.get({ dps: dpsNums[0] }).then(status => currentStatus = status);
@@ -128,7 +143,7 @@ async function tuyaDeviceSetStatus(newStatus, device, dpsNums) {
 			await device.set({ dps: dpsNums[i], set: newStatus });
 		}
 		await device.get({ dps: dpsNums[0] }).then(status => currentStatus = status);
-		console.log(`Current status: ${colorMagenta}%s${colorReset}`, `${currentStatus}`);
+		logStatus('Current status: ', currentStatus);
 	} else {
 		console.log(`${colorYellow}%s${colorReset}`, 'Nothing change');
 	}
@@ -143,7 +158,7 @@ async function tuyaDeviceGetStatus(device, dpsNums) {
 	await tuyaDeviceInit(device);
 
 	await device.get({ dps: dpsNums[0] }).then(status => currentStatus = status);
-	console.log(`Current status: ${colorMagenta}%s${colorReset}`, `${currentStatus}`);
+	logStatus('Current status: ', currentStatus);
 
 	tuyaDeviceReset(device);
 	return (currentStatus);
@@ -155,10 +170,10 @@ async function tuyaDeviceGetStatus(device, dpsNums) {
  * 
  * *************************************************/
 
- function logStatus(status) {
+ function logStatus(logMsg, status) {
 	if (status) {
-		console.log(`New status: ${colorGreen}%s${colorReset}`, `${status}`);
+		console.log(`${logMsg}${colorGreen}%s${colorReset}`, `${status}`);
 	} else {
-		console.log(`New status: ${colorRed}%s${colorReset}`, `${status}`);
+		console.log(`${logMsg}${colorRed}%s${colorReset}`, `${status}`);
 	}
  }
