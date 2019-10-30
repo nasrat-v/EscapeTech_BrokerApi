@@ -4,10 +4,6 @@ const colorRed = '\x1b[31m';
 const colorGreen = '\x1b[32m';
 const colorYellow = '\x1b[33m';
 const colorBlue = '\x1b[34m';
-const dpsLight = [20];
-const dpsSocket = [1, 27];
-const ledMessengerUrl = 'https://www.smartledmessenger.com/push.ashx';
-const ledMessengerKey = 'VhPIMegM2NBPyGO4+t5V1w==';
 
 var express = require('express');
 var bodyParser = require('body-parser');
@@ -49,59 +45,87 @@ myRouter.route('/')
       res.end('EscapeTech_BrokerApi. Check: https://github.com/nasrat-v/EscapeTech_BrokerApi');
 });
 
+/*************** LIGHT ***************/ 
+
 myRouter.route('/turnOnLight')
 .get(function(req, res) {
-	console.log('\n[Light request]');
+	console.log('\n[Light status request]');
 	(async() => {
-		var status = await tuyaDeviceSetStatus(true, deviceLight, dpsLight);
+		var status = await tuyaSmartLightSetStatus(true);
 		res.json({ 'result': status });
 	})();
 })
 
 myRouter.route('/turnOffLight')
 .get(function(req, res) {
-	console.log('\n[Light request]');
+	console.log('\n[Light status request]');
 	(async() => {
-		var status = await tuyaDeviceSetStatus(false, deviceLight, dpsLight);
+		var status = await tuyaSmartLightSetStatus(false);
 		res.json({ 'result': status });
 	})();
 })
 
 myRouter.route('/getStatusLight')
 .get(function(req, res) {
-	console.log('\n[Light request]');
+	console.log('\n[Light status request]');
 	(async() => {
-		var status = await tuyaDeviceGetStatus(deviceLight, dpsLight);
+		var status = await tuyaSmartLightGetStatus();
 		res.json({ 'result': status });
 	})();
 })
 
+myRouter.route('/setColorLight')
+.post(function(req, res) {
+	var color = req.body.color;
+
+	console.log('\n[Socket color request]');
+	(async() => {
+		//var status = await tuyaDeviceSetStatus(color, deviceSocket, dpsSocketColor);
+		res.json({ 'result': status });
+	})();
+})
+
+/*************** SOCKET ***************/ 
+
 myRouter.route('/turnOnSocket')
 .get(function(req, res) {
-	console.log('\n[Socket request]');
+	console.log('\n[Socket status request]');
 	(async() => {
-		var status = await tuyaDeviceSetStatus(true, deviceSocket, dpsSocket);
+		var status = await tuyaSmartSocketSetStatus(true);
 		res.json({ 'result': status });
 	})();
 })
 
 myRouter.route('/turnOffSocket')
 .get(function(req, res) {
-	console.log('\n[Socket request]');
+	console.log('\n[Socket status request]');
 	(async() => {
-		var status = await tuyaDeviceSetStatus(false, deviceSocket, dpsSocket);
+		var status = await tuyaSmartSocketSetStatus(false);
 		res.json({ 'result': status });
 	})();
 })
 
 myRouter.route('/getStatusSocket')
 .get(function(req, res) {
-	console.log('\n[Socket request]');
+	console.log('\n[Socket status request]');
 	(async() => {
-		var status = await tuyaDeviceGetStatus(deviceSocket, dpsSocket);
+		var status = await tuyaSmartSocketGetStatus();
 		res.json({ 'result': status });
 	})();
 })
+
+myRouter.route('/setColorSocket')
+.post(function(req, res) {
+	var color = req.body.color;
+
+	console.log('\n[Socket color request]');
+	(async() => {
+		//var status = await tuyaDeviceSetStatus(color, deviceSocket, dpsSocketColor);
+		res.json({ 'result': status });
+	})();
+})
+
+/*************** LED MESSENGER ***************/ 
 
 myRouter.route('/ledMessenger')
 .post(function(req, res) {
@@ -125,7 +149,7 @@ function setEventListener() {
 	tuyaDeviceSetEventListener(deviceSocket);
 }
 
- function tuyaDeviceSetEventListener(device) {
+function tuyaDeviceSetEventListener(device) {
 	device.on('error', error => {
 		console.error(`Error from device: '${ device.id }'`, error)
 		tuyaDeviceReset(device);
@@ -152,9 +176,6 @@ function tuyaDeviceReset(device) {
 async function tuyaDeviceSetStatus(newStatus, device, dpsNums) {
 	var currentStatus;
 
-	logStatus('New status: ', newStatus);
-	await tuyaDeviceInit(device);
-
 	await device.get({ dps: dpsNums[0] }).then(status => currentStatus = status);
 	if (currentStatus != newStatus) {
 		for (i = 0; i < dpsNums.length; i++) {
@@ -165,21 +186,80 @@ async function tuyaDeviceSetStatus(newStatus, device, dpsNums) {
 	} else {
 		console.log(`${colorYellow}%s${colorReset}`, 'Nothing change');
 	}
-
-	tuyaDeviceReset(device);
 	return (currentStatus);
 }
 
-async function tuyaDeviceGetStatus(device, dpsNums) {
+async function tuyaDeviceGetStatus(device, dpsNum) {
 	var currentStatus;
 
-	await tuyaDeviceInit(device);
-
-	await device.get({ dps: dpsNums[0] }).then(status => currentStatus = status);
+	await device.get({ dps: dpsNum }).then(status => currentStatus = status);
 	logStatus('Current status: ', currentStatus);
 
-	tuyaDeviceReset(device);
 	return (currentStatus);
+}
+
+/***************************************************
+ * 
+ * 					Tuya smart light
+ * 
+ * *************************************************/
+
+const dpsLight = [20];
+const dpsLightColor = [];
+
+async function tuyaSmartLightSetStatus(newStatus) {
+	logStatus('New status: ', newStatus);
+	await tuyaDeviceInit(deviceLight);
+
+	var currentStatus = await tuyaDeviceSetStatus(newStatus, deviceLight, dpsLight);
+
+	tuyaDeviceReset(deviceLight);
+	return (currentStatus);
+ }
+
+ async function tuyaSmartLightGetStatus() {
+	await tuyaDeviceInit(deviceLight);
+
+	var currentStatus = await tuyaDeviceGetStatus(deviceLight, dpsLight);
+
+	tuyaDeviceReset(deviceLight);
+	return (currentStatus);
+}
+
+async function tuyaSmartLightSetColor() {
+
+}
+
+/***************************************************
+ * 
+ * 					Tuya smart socket
+ * 
+ * *************************************************/
+
+const dpsSocket = [1, 27];
+const dpsSocketColor = [28];
+
+async function tuyaSmartSocketSetStatus(newStatus) {
+	logStatus('New status: ', newStatus);
+	await tuyaDeviceInit(deviceSocket);
+
+	var currentStatus = await tuyaDeviceSetStatus(newStatus, deviceSocket, dpsSocket);
+
+	tuyaDeviceReset(deviceSocket);
+	return (currentStatus);
+ }
+
+ async function tuyaSmartSocketGetStatus() {
+	await tuyaDeviceInit(deviceSocket);
+
+	var currentStatus = await tuyaDeviceGetStatus(deviceSocket, dpsSocket);
+
+	tuyaDeviceReset(deviceSocket);
+	return (currentStatus);
+}
+
+async function tuyaSmartSocketSetColor() {
+
 }
 
 /***************************************************
@@ -187,6 +267,9 @@ async function tuyaDeviceGetStatus(device, dpsNums) {
  * 					Led Messenger
  * 
  * *************************************************/
+
+const ledMessengerUrl = 'https://www.smartledmessenger.com/push.ashx';
+const ledMessengerKey = 'VhPIMegM2NBPyGO4+t5V1w==';
 
 async function ledMessengerSendMessage(msg) {
 	var result;
