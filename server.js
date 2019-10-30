@@ -3,18 +3,23 @@ const colorReset = '\x1b[0m';
 const colorRed = '\x1b[31m';
 const colorGreen = '\x1b[32m';
 const colorYellow = '\x1b[33m';
+const colorBlue = '\x1b[34m';
 const dpsLight = [20];
 const dpsSocket = [1, 27];
+const ledMessengerUrl = 'https://www.smartledmessenger.com/push.ashx';
+const ledMessengerKey = 'VhPIMegM2NBPyGO4+t5V1w==';
 
 var express = require('express');
+var bodyParser = require('body-parser');
+var superagent = require('superagent')
 var tuyApi = require('tuyapi');
 
-var deviceLight = new tuyApi({
+const deviceLight = new tuyApi({
 	id: '40770742dc4f227126be',
 	key: '144ea7591e111996'
 });
 
-var deviceSocket = new tuyApi({
+const deviceSocket = new tuyApi({
 	id: '23106066bcddc298d80e',
 	key: '6df35ba291cb464b'
 });
@@ -31,9 +36,17 @@ var myRouter = express.Router();
  * 
  * *************************************************/
 
+ setEventListener();
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
+app.use(myRouter);
+app.listen(port, hostname, function() {
+	console.log('Server launched\nListen on http://' + hostname + ':' + port); 
+});
+
 myRouter.route('/')
 .all(function(req,res){ 
-      res.json({message : 'EscapeTech_BrokerApi. Check: https://github.com/nasrat-v/EscapeTech_BrokerApi'});
+      res.end('EscapeTech_BrokerApi. Check: https://github.com/nasrat-v/EscapeTech_BrokerApi');
 });
 
 myRouter.route('/turnOnLight')
@@ -41,7 +54,7 @@ myRouter.route('/turnOnLight')
 	console.log('\n[Light request]');
 	(async() => {
 		var status = await tuyaDeviceSetStatus(true, deviceLight, dpsLight);
-		res.json({message : status, methode : req.method});
+		res.json({ 'result': status });
 	})();
 })
 
@@ -50,7 +63,7 @@ myRouter.route('/turnOffLight')
 	console.log('\n[Light request]');
 	(async() => {
 		var status = await tuyaDeviceSetStatus(false, deviceLight, dpsLight);
-		res.json({message : status, methode : req.method});
+		res.json({ 'result': status });
 	})();
 })
 
@@ -59,7 +72,7 @@ myRouter.route('/getStatusLight')
 	console.log('\n[Light request]');
 	(async() => {
 		var status = await tuyaDeviceGetStatus(deviceLight, dpsLight);
-		res.json({message : status, methode : req.method});
+		res.json({ 'result': status });
 	})();
 })
 
@@ -68,7 +81,7 @@ myRouter.route('/turnOnSocket')
 	console.log('\n[Socket request]');
 	(async() => {
 		var status = await tuyaDeviceSetStatus(true, deviceSocket, dpsSocket);
-		res.json({message : status, methode : req.method});
+		res.json({ 'result': status });
 	})();
 })
 
@@ -77,7 +90,7 @@ myRouter.route('/turnOffSocket')
 	console.log('\n[Socket request]');
 	(async() => {
 		var status = await tuyaDeviceSetStatus(false, deviceSocket, dpsSocket);
-		res.json({message : status, methode : req.method});
+		res.json({ 'result': status });
 	})();
 })
 
@@ -86,15 +99,20 @@ myRouter.route('/getStatusSocket')
 	console.log('\n[Socket request]');
 	(async() => {
 		var status = await tuyaDeviceGetStatus(deviceSocket, dpsSocket);
-		res.json({message : status, methode : req.method});
+		res.json({ 'result': status });
 	})();
 })
 
-setEventListener();
-app.use(myRouter);
-app.listen(port, hostname, function(){
-	console.log('Server launched\nListen on http://' + hostname + ':' + port); 
-});
+myRouter.route('/ledMessenger')
+.post(function(req, res) {
+	var msg = req.body.message;
+	
+	console.log('\n[Led Messenger request]');
+	(async() => {
+		var status = await ledMessengerSendMessage(msg);
+		res.json({ 'result': status });
+	})();
+})
 
 /***************************************************
  * 
@@ -162,6 +180,24 @@ async function tuyaDeviceGetStatus(device, dpsNums) {
 
 	tuyaDeviceReset(device);
 	return (currentStatus);
+}
+
+/***************************************************
+ * 
+ * 					Led Messenger
+ * 
+ * *************************************************/
+
+async function ledMessengerSendMessage(msg) {
+	var result;
+
+	console.log(`Send message: ${colorBlue}'%s'${colorReset}`, `${msg}`);
+
+	await superagent.get(ledMessengerUrl).query({ key: ledMessengerKey, message: msg })
+	.then(res => result = res.text);
+
+	console.log(`Result: ${result}`);
+	return (result);
 }
 
 /***************************************************
