@@ -120,7 +120,7 @@ myRouter.route('/setColorSocket')
 
 	console.log('\n[Socket color request]');
 	(async() => {
-		//var status = await tuyaDeviceSetStatus(color, deviceSocket, dpsSocketColor);
+		var status = await tuyaSmartSocketSetColor(color);
 		res.json({ 'result': status });
 	})();
 })
@@ -237,7 +237,12 @@ async function tuyaSmartLightSetColor() {
  * *************************************************/
 
 const dpsSocket = [1, 27];
-const dpsSocketColor = [28];
+const dpsSocketColour = [28];
+const dpsSocketColourHex = [31];
+const valueSocketColour = 'colour';
+const valueSocketWhite = 'white';
+const valueSocketWhiteHex = 'ff00000000ffff';
+const valueSocketRedHex = 'ff040000016464';
 
 async function tuyaSmartSocketSetStatus(newStatus) {
 	logStatus('New status: ', newStatus);
@@ -258,8 +263,33 @@ async function tuyaSmartSocketSetStatus(newStatus) {
 	return (currentStatus);
 }
 
-async function tuyaSmartSocketSetColor() {
+async function tuyaSmartSocketSetColor(newColor) {
+	var newColorHex;
+	var valueColor;
 
+	logStatus('* New color: ', newColor);
+	await tuyaDeviceInit(deviceSocket);
+
+	switch (newColor) {
+		case 'red':
+			newColorHex = valueSocketRedHex;
+			valueColor = valueSocketColour;
+			break;
+		case 'white':
+			newColorHex = valueSocketWhiteHex;
+			valueColor = valueSocketWhite;
+			break;
+	}
+
+	console.log('* Turn ON device');
+	await tuyaDeviceSetStatus(true, deviceSocket, dpsSocket); // turn ON
+	console.log('* Define colour');
+	await tuyaDeviceSetStatus(valueColor, deviceSocket, dpsSocketColour); // define if we use colour or white
+	console.log('* Set new color');
+	var currentStatus = await tuyaDeviceSetStatus(newColorHex, deviceSocket, dpsSocketColourHex); // set new color
+
+	tuyaDeviceReset(deviceSocket);
+	return (currentStatus);
 }
 
 /***************************************************
