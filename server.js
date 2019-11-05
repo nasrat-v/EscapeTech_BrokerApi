@@ -121,7 +121,6 @@ myRouter.route('/setColorSocket')
 
 	console.log('\n[Socket color request]');
 	(async() => {
-		console.log(color);
 		var status = await tuyaSmartSocketSetColor(color);
 		res.json({ 'result': status });
 	})();
@@ -238,17 +237,19 @@ async function tuyaSmartLightSetColor() {
  * 
  * *************************************************/
 
+const socketError = 'Bad color';
+const socketSuccess = 'OK';
 const dpsSocket = [1, 27];
 const dpsSocketColour = [28];
 const dpsSocketColourHex = [31];
 const valueSocketColour = 'colour';
 const valueSocketWhite = 'white';
-const valueSocketRedHex = 'ff040000016464';
-const valueSocketGreenHex = '47ff000067ffff';
-const valueSocketBlueHex = '0033ff00e3ffff';
-const valueSocketPinkHex = 'ff00e90131ffff';
-const valueSocketYellowHex = 'ffc400002effff';
-const valueSocketWhiteHex = 'ff00000000ffff';
+const valueSocketColorHex = [
+	[ 'red', 'ff040000016464' ], [ 'green', '47ff000067ffff' ],
+	[ 'blue', '0033ff00e3ffff' ], [ 'yellow', 'ffc400002effff' ], 
+	[ 'magenta', 'ff00e90131ffff' ], [ 'cyan', '00ffdb00abffff' ],
+	[ 'white', 'ff00000000ffff' ]
+];
 
 async function tuyaSmartSocketSetStatus(newStatus) {
 	logStatus('New status: ', newStatus);
@@ -271,37 +272,44 @@ async function tuyaSmartSocketGetStatus() {
 
 async function tuyaSmartSocketSetColor(newColor) {
 	logStatus('* New color: ', newColor);
-	await tuyaDeviceInit(deviceSocket);
+	const [whiteOrColour, valueColorHex] = tuyaSmartSocketConvertColorToHex(newColor);
 
-	const [whiteOrColour, valueHexColor] = tuyaSmartSocketConvertColorToHex(newColor);
+	if (valueColorHex == undefined) {
+		console.log(`Error: ${colorRed}${socketError}${colorReset}`);
+		tuyaDeviceReset(deviceSocket);
+		return (socketError);
+	}
+
+	await tuyaDeviceInit(deviceSocket);
 
 	console.log('* Turn ON device');
 	await tuyaDeviceSetStatus(true, deviceSocket, dpsSocket); // turn ON
 	console.log('* Define colour');
 	await tuyaDeviceSetStatus(whiteOrColour, deviceSocket, dpsSocketColour); // define if we use white or colour
 	console.log('* Set new color');
-	var currentStatus = await tuyaDeviceSetStatus(valueHexColor, deviceSocket, dpsSocketColourHex); // set new color
+	var currentStatus = await tuyaDeviceSetStatus(valueColorHex, deviceSocket, dpsSocketColourHex); // set new color
 
 	tuyaDeviceReset(deviceSocket);
-	return (currentStatus);
+	return (tuyaSmartSocketConvertStatusToResult(currentStatus));
 }
 
 function tuyaSmartSocketConvertColorToHex(newColor) {
-	switch (newColor) {
-		case 'red':
-			return ([valueSocketColour, valueSocketRedHex]);
-		case 'green':
-			return ([valueSocketColour, valueSocketGreenHex]);
-		case 'blue':
-			return ([valueSocketColour, valueSocketBlueHex]);
-		case 'yellow':
-			return ([valueSocketColour, valueSocketYellowHex]);
-		case 'pink':
-			return ([valueSocketColour, valueSocketPinkHex]);
-		case 'white':
-			return ([valueSocketWhite, valueSocketWhiteHex]);
+	var whiteOrColour;
+	const colorHexMap = new Map(valueSocketColorHex);
+
+	if (newColor == 'white') {
+		whiteOrColour = valueSocketWhite;
+	} else {
+		whiteOrColour = valueSocketColour;
 	}
-	return ([valueSocketWhite, valueSocketWhiteHex]);
+	return ([whiteOrColour, colorHexMap.get(newColor)]);
+}
+
+function tuyaSmartSocketConvertStatusToResult(status) {
+	if (valueSocketColorHex.find(([key, val]) => val == status) != undefined) {
+		return (socketSuccess);
+	}
+	return (socketError);
 }
 
 /***************************************************
