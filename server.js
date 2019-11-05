@@ -131,10 +131,13 @@ myRouter.route('/setColorSocket')
 myRouter.route('/ledMessenger')
 .post(function(req, res) {
 	var msg = req.body.message;
+	var its = req.body.intensity;
+	var spd = req.body.speed;
+	var	stc = req.body.static;
 	
 	console.log('\n[Led Messenger request]');
 	(async() => {
-		var status = await ledMessengerSendMessage(msg);
+		var status = await ledMessengerSetStatus(msg, its, spd, stc);
 		res.json({ 'result': status });
 	})();
 })
@@ -318,18 +321,20 @@ function tuyaSmartSocketConvertStatusToResult(status) {
  * 
  * *************************************************/
 
-const ledMessengerUrl = 'https://www.smartledmessenger.com/push.ashx';
-const ledMessengerKey = 'VhPIMegM2NBPyGO4+t5V1w==';
+const ledMessengerIp = '192.168.2.3'
+const ledMessengerUrl = 'http://' + ledMessengerIp + '/';
 
-async function ledMessengerSendMessage(msg) {
+async function ledMessengerSetStatus(msg, its, spd, stc) {
 	var result;
 
-	console.log(`Send message: ${colorBlue}'%s'${colorReset}`, `${msg}`);
+	console.log(`Set message: ${colorBlue}'%s'${colorReset}`, `${msg}`);
+	console.log(`Set intensity: ${its}`);
+	console.log(`Set speed: ${spd}`);
+	console.log(`Set static: ${stc}`);
 
-	await superagent.get(ledMessengerUrl).query({ key: ledMessengerKey, message: msg })
+	await superagent.get(ledMessengerUrl).query({ message: msg, intensity: its, speed: spd, static: stc })
 	.then(res => result = res.text);
-
-	console.log(`Result: ${result}`);
+	
 	return (result);
 }
 
