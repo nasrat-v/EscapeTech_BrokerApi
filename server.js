@@ -43,7 +43,7 @@ app.listen(port, hostname, function() {
 myRouter.route('/')
 .all(function(req,res){ 
 	  res.end('EscapeTech_BrokerApi. Check: https://github.com/nasrat-v/EscapeTech_BrokerApi');
-	  logSchema(deviceSocket);
+	  logSchema(deviceLight);
 });
 
 /*************** LIGHT ***************/ 
@@ -79,9 +79,20 @@ myRouter.route('/setColorLight')
 .post(function(req, res) {
 	var color = req.body.color;
 
-	console.log('\n[Socket color request]');
+	console.log('\n[Light color request]');
 	(async() => {
-		//var status = await tuyaDeviceSetStatus(color, deviceSocket, dpsSocketColor);
+		var status = await tuyaSmartLightSetColor(color);
+		res.json({ 'result': status });
+	})();
+})
+
+myRouter.route('/flashLight')
+.post(function(req, res) {
+	var uTimer = req.body.utimer;
+
+	console.log('\n[Light color request]');
+	(async() => {
+		var status = await tuyaSmartLightSetFlash(uTimer);
 		res.json({ 'result': status });
 	})();
 })
@@ -126,6 +137,17 @@ myRouter.route('/setColorSocket')
 	})();
 })
 
+myRouter.route('/flashSocket')
+.post(function(req, res) {
+	var uTimer = req.body.utimer;
+
+	console.log('\n[Socket color request]');
+	(async() => {
+		var status = await tuyaSmartSocketSetFlash(uTimer);
+		res.json({ 'result': status });
+	})();
+})
+
 /*************** LED MESSENGER ***************/ 
 
 myRouter.route('/ledMessenger')
@@ -147,6 +169,11 @@ myRouter.route('/ledMessenger')
  * 					Tuya devices
  * 
  * *************************************************/
+
+const tuyaError = 'Bad color';
+const tuyaSuccess = 'OK';
+const valueTuyaColour = 'colour';
+const valueTuyaWhite = 'white';
 
 function setEventListener() {
 	tuyaDeviceSetEventListener(deviceLight);
@@ -202,14 +229,57 @@ async function tuyaDeviceGetStatus(device, dpsNum) {
 	return (currentStatus);
 }
 
+async function tuyaDeviceSetFlash(uTimer, uFlashTimer, device, dpsNum) {
+	var currentStatus;
+	var newStatus = false;
+	var startSimulateTime = Date.now();
+	const startTime = Date.now();
+
+	while ((Date.now() - startTime) <= uTimer) {
+		startSimulateTime = Date.now();
+		newStatus = !newStatus;
+
+		while ((Date.now() - startSimulateTime) <= uFlashTimer);
+		currentStatus = await tuyaDeviceSetStatus(newStatus, device, dpsNum);
+	}
+	return (currentStatus);
+}
+
+function tuyaDeviceConvertColorToHex(newColor, colorHexArray) {
+	var whiteOrColour;
+	const colorHexMap = new Map(colorHexArray);
+
+	if (newColor == 'white') {
+		whiteOrColour = valueTuyaWhite;
+	} else {
+		whiteOrColour = valueTuyaColour;
+	}
+	return ([whiteOrColour, colorHexMap.get(newColor)]);
+}
+
+function tuyaDeviceConvertStatusToResult(status, colorHexArray) {
+	if (colorHexArray.find(([key, val]) => val == status) != undefined) {
+		return (tuyaSuccess);
+	}
+	return (tuyaError);
+}
+
 /***************************************************
  * 
  * 					Tuya smart light
  * 
  * *************************************************/
 
+const uLightFlashTimer = 1100;
 const dpsLight = [20];
-const dpsLightColor = [];
+const dpsLightColour = [21];
+const dpsLightColourHex = [24];
+const lightColorHexArray = [
+	[ 'red', '000003e803e8' ], [ 'green', '007603e803e8' ],
+	[ 'blue', '00d903e803e8' ], [ 'yellow', '003503e803e8' ], 
+	[ 'magenta', '013903e803e8' ], [ 'cyan', '00a503e803e8' ],
+	[ 'white', '000003e803e8' ]
+];
 
 async function tuyaSmartLightSetStatus(newStatus) {
 	logStatus('New status: ', newStatus);
@@ -230,9 +300,36 @@ async function tuyaSmartLightSetStatus(newStatus) {
 	return (currentStatus);
 }
 
-async function tuyaSmartLightSetColor() {
+async function tuyaSmartLightSetColor(newColor) {
+	logStatus('* New color: ', newColor);
+	const [whiteOrColour, valueColorHex] = tuyaDeviceConvertColorToHex(newColor, lightColorHexArray);
 
+	if (valueColorHex == undefined) {
+		console.log(`Error: ${colorRed}${tuyaError}${colorReset}`);
+		return (tuyaError);
+	}
+	await tuyaDeviceInit(deviceLight);
+
+	console.log('* Define colour');
+	await tuyaDeviceSetStatus(whiteOrColour, deviceLight, dpsLightColour);
+	console.log('* Set new color');
+	var currentStatus = await tuyaDeviceSetStatus(valueColorHex, deviceLight, dpsLightColourHex);
+	console.log('* Turn ON device');
+	await tuyaDeviceSetStatus(true, deviceLight, dpsLight);
+
+	tuyaDeviceReset(deviceLight);
+	return (tuyaDeviceConvertStatusToResult(currentStatus, lightColorHexArray));
 }
+
+async function tuyaSmartLightSetFlash(uTimer) {
+	await tuyaDeviceInit(deviceLight);
+
+	var currentStatus = await tuyaDeviceSetFlash(uTimer, uLightFlashTimer, deviceLight, dpsLight);
+
+	tuyaDeviceReset(deviceLight);
+	return (currentStatus);
+}
+
 
 /***************************************************
  * 
@@ -240,14 +337,12 @@ async function tuyaSmartLightSetColor() {
  * 
  * *************************************************/
 
-const socketError = 'Bad color';
-const socketSuccess = 'OK';
-const dpsSocket = [1, 27];
+const uSocketFlashTimer = 500;
+const dpsSocketLight = [27];
+const dpsSocket = [1, dpsSocketLight];
 const dpsSocketColour = [28];
 const dpsSocketColourHex = [31];
-const valueSocketColour = 'colour';
-const valueSocketWhite = 'white';
-const valueSocketColorHex = [
+const socketColorHexArray = [
 	[ 'red', 'ff040000016464' ], [ 'green', '47ff000067ffff' ],
 	[ 'blue', '0033ff00e3ffff' ], [ 'yellow', 'ffc400002effff' ], 
 	[ 'magenta', 'ff00e90131ffff' ], [ 'cyan', '00ffdb00abffff' ],
@@ -275,44 +370,32 @@ async function tuyaSmartSocketGetStatus() {
 
 async function tuyaSmartSocketSetColor(newColor) {
 	logStatus('* New color: ', newColor);
-	const [whiteOrColour, valueColorHex] = tuyaSmartSocketConvertColorToHex(newColor);
+	const [whiteOrColour, valueColorHex] = tuyaDeviceConvertColorToHex(newColor, socketColorHexArray);
 
 	if (valueColorHex == undefined) {
-		console.log(`Error: ${colorRed}${socketError}${colorReset}`);
-		tuyaDeviceReset(deviceSocket);
-		return (socketError);
+		console.log(`Error: ${colorRed}${tuyaError}${colorReset}`);
+		return (tuyaError);
 	}
-
 	await tuyaDeviceInit(deviceSocket);
 
-	console.log('* Turn ON device');
-	await tuyaDeviceSetStatus(true, deviceSocket, dpsSocket); // turn ON
 	console.log('* Define colour');
-	await tuyaDeviceSetStatus(whiteOrColour, deviceSocket, dpsSocketColour); // define if we use white or colour
+	await tuyaDeviceSetStatus(whiteOrColour, deviceSocket, dpsSocketColour);
 	console.log('* Set new color');
-	var currentStatus = await tuyaDeviceSetStatus(valueColorHex, deviceSocket, dpsSocketColourHex); // set new color
+	var currentStatus = await tuyaDeviceSetStatus(valueColorHex, deviceSocket, dpsSocketColourHex);
+	console.log('* Turn ON device');
+	await tuyaDeviceSetStatus(true, deviceSocket, dpsSocket);
 
 	tuyaDeviceReset(deviceSocket);
-	return (tuyaSmartSocketConvertStatusToResult(currentStatus));
+	return (tuyaDeviceConvertStatusToResult(currentStatus, socketColorHexArray));
 }
 
-function tuyaSmartSocketConvertColorToHex(newColor) {
-	var whiteOrColour;
-	const colorHexMap = new Map(valueSocketColorHex);
+async function tuyaSmartSocketSetFlash(uTimer) {
+	await tuyaDeviceInit(deviceSocket);
 
-	if (newColor == 'white') {
-		whiteOrColour = valueSocketWhite;
-	} else {
-		whiteOrColour = valueSocketColour;
-	}
-	return ([whiteOrColour, colorHexMap.get(newColor)]);
-}
+	var currentStatus = await tuyaDeviceSetFlash(uTimer, uSocketFlashTimer, deviceSocket, dpsSocketLight);
 
-function tuyaSmartSocketConvertStatusToResult(status) {
-	if (valueSocketColorHex.find(([key, val]) => val == status) != undefined) {
-		return (socketSuccess);
-	}
-	return (socketError);
+	tuyaDeviceReset(deviceSocket);
+	return (currentStatus);
 }
 
 /***************************************************
@@ -334,7 +417,7 @@ async function ledMessengerSetStatus(msg, its, spd, stc) {
 
 	await superagent.get(ledMessengerUrl).query({ message: msg, intensity: its, speed: spd, static: stc })
 	.then(res => result = res.text);
-	
+
 	return (result);
 }
 
@@ -353,7 +436,6 @@ function logStatus(logMsg, status) {
 }
 
 async function logSchema(device) {
-
 	await tuyaDeviceInit(device);
 
 	await device.get({schema: true}).then(data => console.log(data));
