@@ -1,4 +1,13 @@
 
+/***** Imports *****/
+var express = require('express');
+var bodyParser = require('body-parser');
+var superagent = require('superagent')
+var tuyApi = require('tuyapi');
+var zeroRpc = require('zerorpc');
+
+
+/***** Constants *****/
 const colorReset = '\x1b[0m';
 const colorRed = '\x1b[31m';
 const colorGreen = '\x1b[32m';
@@ -9,11 +18,60 @@ const statusWrongParameter = 422;
 const statusBadRequest = 404;
 const statusSuccess = 200;
 
-var express = require('express');
-var bodyParser = require('body-parser');
-var superagent = require('superagent')
-var tuyApi = require('tuyapi');
 
+/***************************************************
+ * 
+ * 					Init BLE Server
+ * 
+ * *************************************************/
+
+/***** Constants *****/
+var bleClient = new zeroRpc.Client();
+
+
+function initialiseBLE() {
+	console.log('BLE Server initialisation...');
+	bleClient.connect("tcp://127.0.0.1:4242");
+	bleClient.on('error', function(err) {
+		console.error(err);
+	});
+	bleDeviceConnect();
+}
+
+/***************************************************
+ * 
+ * 					Init API Server
+ * 
+ * *************************************************/
+
+/***** Constants *****/
+var apiHostname = '192.168.2.8';
+var apiPort = 3000
+var app = express();
+var myRouter = express.Router();
+
+
+async function initialiseServer() {
+	console.log('API Server initialisation...');
+	app.use(bodyParser.urlencoded({ extended: false }));
+	app.use(bodyParser.json());
+	app.use(myRouter);
+	launchServer();
+}
+
+function launchServer() {
+	app.listen(apiPort, apiHostname, function() {
+		console.log('\nServer launched\nListen on http://' + apiHostname + ':' + apiPort); 
+	});	
+}
+
+/***************************************************
+ * 
+ * 					Init Tuya devices
+ * 
+ * *************************************************/
+
+/***** Constants *****/
 const deviceLight = new tuyApi({
 	id: '40770742dc4f227126be',
 	key: 'b0e7dffc708e8587'
@@ -23,33 +81,24 @@ const deviceSocket = new tuyApi({
 	key: '6df35ba291cb464b'
 });
 
-/***************************************************
- * 
- * 					Init
- * 
- * *************************************************/
 
-var hostname = '192.168.2.7';
-var port = 3000
-var app = express();
-var myRouter = express.Router();
-
-async function initialise() {
-	console.log('Initialisation...');
+async function initiaTuyaDevices() {
 	tuyaLightReset();
 	tuyaSocketReset();
 	await tuyaLightInit();
 	await tuyaSocketInit();
-	app.use(bodyParser.urlencoded({ extended: false }));
-	app.use(bodyParser.json());
-	app.use(myRouter);
-	launchServer();
-}
+ }
 
-function launchServer() {
-	app.listen(port, hostname, function() {
-		console.log('\nServer launched\nListen on http://' + hostname + ':' + port); 
-	});	
+/***************************************************
+ * 
+ * 					Initialisation
+ * 
+ * *************************************************/
+
+function initialise() {
+	initialiseBLE();
+	initialiseServer();
+	//initiaTuyaDevices();
 }
 
 initialise();
@@ -326,12 +375,25 @@ myRouter.route('/ledMessenger')
 	})();
 })
 
+/*************** BLE DEVICES ***************/
+
+myRouter.route('/getTemperature')
+.get(function(req, res) {
+	console.log('\n[BLE temperature request]');
+
+	bleDeviceGetTemperature((result) => {
+		logStatus('Temperature: ', result);
+		res.json({ 'result': result });
+	});
+})
+
 /***************************************************
  * 
  * 					Tuya devices
  * 
  * *************************************************/
 
+/***** Constants *****/
 const tuyaError = 'Bad Color';
 const tuyaSuccess = 'OK';
 const valueTuyaColour = 'colour';
@@ -432,6 +494,7 @@ function tuyaDeviceConvertHexToColor(hex, hexColorArray) {
  * 
  * *************************************************/
 
+/***** Constants *****/
 const uLightFlashTimer = 1100;
 const dpsLight = [20];
 const dpsLightColour = [21];
@@ -448,6 +511,7 @@ const lightColorToHexArray = [
 	[ 'magenta', '013903e803e8' ], [ 'cyan', '00a503e803e8' ],
 	[ 'white', '000000e803e8' ]
 ];
+
 
 async function tuyaLightInit() {
 	console.log('* Smart Light init:')
@@ -502,6 +566,7 @@ function tuyaLightInterpretColor(hex) {
  * 
  * *************************************************/
 
+/***** Constants *****/
 const uSocketFlashTimer = 500;
 const dpsSocketLight = [27];
 const dpsSocket = [1, dpsSocketLight];
@@ -519,6 +584,7 @@ const socketColorToHexArray = [
 	[ 'magenta', 'ff00e90131ffff' ], [ 'cyan', '00ffdb00abffff' ],
 	[ 'white', 'ff00000000ffff' ]
 ];
+
 
 async function tuyaSocketInit() {
 	console.log('* Smart Socket init')
@@ -571,8 +637,10 @@ function tuyaSocketInterpretColor(hex) {
  * 
  * *************************************************/
 
+/***** Constants *****/
 const ledMessengerIp = '192.168.2.3'
 const ledMessengerUrl = 'http://' + ledMessengerIp + '/';
+
 
 async function ledMessengerSetStatus(msg, its, spd, stc) {
 	var result;
@@ -586,6 +654,30 @@ async function ledMessengerSetStatus(msg, its, spd, stc) {
 	.then(res => result = res.text);
 
 	return (result);
+}
+
+/***************************************************
+ * 
+ * 					BLE Devices
+ * 
+ * *************************************************/
+
+function bleDeviceInvokation(rpcName, callback) {
+	bleClient.invoke(rpcName, function(error, result, more) {
+		if (error) {
+			console.error(error);
+		}
+		if (callback)
+			callback(result);
+	});
+}
+
+function bleDeviceConnect() {
+	return bleDeviceInvokation('connect_to_device');
+}
+
+function bleDeviceGetTemperature(callback) {
+	return bleDeviceInvokation('get_temperature', callback);
 }
 
 /***************************************************

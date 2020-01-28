@@ -1,10 +1,10 @@
 #!/bin/bash
 
-LAUNCH="node server.js"
+API_SERVER="node api_server.js"
 
 while :
 do
     echo "///////////////////  New launch at `date` \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\"
-    ${LAUNCH}
+    ${API_SERVER}
     sleep 3
 done
