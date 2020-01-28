@@ -16,3 +16,4 @@ To communicate over Wifi with Tuya IoT device : https://github.com/nasrat-v/Cont
 - express
 - superagent
 - tuyapi
+- zerorpc
