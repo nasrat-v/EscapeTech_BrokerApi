@@ -1,6 +1,7 @@
 
 /***** Imports *****/
 var express = require('express');
+var cors = require('cors');
 var bodyParser = require('body-parser');
 var superagent = require('superagent')
 var tuyApi = require('tuyapi');
@@ -53,6 +54,7 @@ var myRouter = express.Router();
 
 async function initialiseServer() {
 	console.log('API Server initialisation...');
+	app.use(cors());
 	app.use(bodyParser.urlencoded({ extended: false }));
 	app.use(bodyParser.json());
 	app.use(myRouter);
@@ -74,11 +76,11 @@ function launchServer() {
 /***** Constants *****/
 const deviceLight = new tuyApi({
 	id: '40770742dc4f227126be',
-	key: 'b0e7dffc708e8587'
+	key: '455df57603868fe2'
 });
 const deviceSocket = new tuyApi({
 	id: '23106066bcddc298d80e',
-	key: '6df35ba291cb464b'
+	key: 'b1b2082cedf638d2'
 });
 
 
@@ -98,7 +100,7 @@ async function initiaTuyaDevices() {
 function initialise() {
 	initialiseBLE();
 	initialiseServer();
-	//initiaTuyaDevices();
+	initiaTuyaDevices();
 }
 
 initialise();
@@ -545,8 +547,6 @@ async function tuyaLightSetColor(newColor) {
 	await tuyaDeviceSetStatus(whiteOrColour, deviceLight, dpsLightColour);
 	console.log('* Set new color');
 	var currentStatus = await tuyaDeviceSetStatus(valueColorHex, deviceLight, dpsLightColourHex);
-	console.log('* Turn ON device');
-	await tuyaDeviceSetStatus(true, deviceLight, dpsLight);
 
 	return (tuyaLightInterpretColor(currentStatus));
 }
