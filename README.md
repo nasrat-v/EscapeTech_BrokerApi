@@ -14,8 +14,9 @@ To communicate over Wifi with Tuya IoT device : https://github.com/nasrat-v/Cont
 ## Installation
 
 #### node_modules required
-- body-parser
 - express
+- cors
+- body-parser
 - superagent
 - tuyapi
 - zerorpc
