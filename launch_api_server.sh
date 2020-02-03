@@ -1,6 +1,6 @@
 #!/bin/bash
 
-API_SERVER="node api_server.js"
+API_SERVER="node api_server.js --ble"
 
 while :
 do

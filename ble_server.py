@@ -20,10 +20,16 @@ from blue_st_sdk.features.audio.adpcm.feature_audio_adpcm_sync import FeatureAud
 SRV_BLE_HOSTNAME = "tcp://0.0.0.0:4242"
 SCANNING_TIME_s = 2
 DEVICE = "BCN-002"
-FEATURE = "Temperature"
-CONNECT = "connect\n"
-GET_NOTIFS = "get_notifs\n"
+FEATURE_TEMP = "Temperature"
+FEATURE_HUMI = "Humidity"
+FEATURE_PRES = "Pressure"
+FEATURE_MAGN = "Magnetometer"
+FEATURE_GYRO = "Gyroscope"
+FEATURE_ACCE = "Accelerometer"
 ERROR = "error"
+UNIT_MAGN = "mGa"
+UNIT_GYRO = "dps"
+UNIT_ACCE = "mg"
 NOTIFICATIONS = 1
 
 
@@ -97,10 +103,10 @@ class ServerBLE(object):
         return ERROR
 
 
-    def find_feature(self, device):
+    def find_feature(self, device, feature_name):
         features = device.get_features()
         for feature in features:
-            if feature.get_name() == FEATURE:
+            if feature.get_name() == feature_name:
                 return feature
         return ERROR
 
@@ -126,8 +132,8 @@ class ServerBLE(object):
             sys.exit(0)
 
 
-    def get_temperature(self):
-        feature = self.find_feature(self._device)
+    def get_data_feature(self, feature_name):
+        feature = self.find_feature(self._device, feature_name)
         if feature == ERROR:
             print('Feature not found.\n')
             sys.exit(0)
@@ -142,8 +148,50 @@ class ServerBLE(object):
         self._device.disable_notifications(feature)
         feature.remove_listener(feature_listener)
         # Parse and keep only value
-        return str(feature).split(':')[1].strip()
+        return str(feature)
+
+    
+    def parseToJson(self, data, unit):
+        jsonData = '{ \"X\": \"' + data.split(unit)[0].split(':')[1].strip()
+        jsonData += ' ' + unit + '\", \"Y\": \"' + data.split(unit)[1].split(':')[1].strip()
+        jsonData += ' ' + unit + '\", \"Z\": \"' + data.split(unit)[2].split(':')[1].strip()
+        jsonData += ' ' + unit + '\" }'
+        return jsonData
+
+
+    def get_temperature(self):
+        data = self.get_data_feature(FEATURE_TEMP)
+        return data.split('): ')[1].strip()
+
+
+    def get_humidity(self):
+        data = self.get_data_feature(FEATURE_HUMI)
+        return data.split('): ')[1].strip()
+
+
+    def get_pressure(self):
+        data = self.get_data_feature(FEATURE_PRES)
+        return data.split('): ')[1].strip()
+
+
+    def get_magnetometer(self):
+        data = self.get_data_feature(FEATURE_MAGN)
+        data = data.split('): (')[1]
+        return self.parseToJson(data, UNIT_MAGN)
         
+
+
+    def get_gyroscope(self):
+        data = self.get_data_feature(FEATURE_GYRO)
+        data = data.split('): (')[1]
+        return self.parseToJson(data, UNIT_GYRO)
+
+
+    def get_accelerometer(self):
+        data = self.get_data_feature(FEATURE_ACCE)
+        data = data.split('): (')[1]
+        return self.parseToJson(data, UNIT_ACCE)
+
 
 
 # MAIN APPLICATION

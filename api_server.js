@@ -14,6 +14,7 @@ const colorRed = '\x1b[31m';
 const colorGreen = '\x1b[32m';
 const colorYellow = '\x1b[33m';
 const colorBlue = '\x1b[34m';
+const bleArg = '--ble';
 const statusInternalServerError = 500;
 const statusWrongParameter = 422;
 const statusBadRequest = 404;
@@ -46,7 +47,7 @@ function initialiseBLE() {
  * *************************************************/
 
 /***** Constants *****/
-var apiHostname = '192.168.2.8';
+var apiHostname = '192.168.2.7';
 var apiPort = 3000
 var app = express();
 var myRouter = express.Router();
@@ -98,7 +99,16 @@ async function initiaTuyaDevices() {
  * *************************************************/
 
 function initialise() {
-	initialiseBLE();
+	var ble = false;
+
+	process.argv.forEach(function (val, index, array) {
+		if (val == bleArg) {
+			ble = true;
+		}
+	});
+	if (ble) {
+		initialiseBLE();
+	}
 	initialiseServer();
 	initiaTuyaDevices();
 }
@@ -386,6 +396,56 @@ myRouter.route('/getTemperature')
 	bleDeviceGetTemperature((result) => {
 		logStatus('Temperature: ', result);
 		res.json({ 'result': result });
+	});
+})
+
+myRouter.route('/getHumidity')
+.get(function(req, res) {
+	console.log('\n[BLE humidity request]');
+
+	bleDeviceGetHumidity((result) => {
+		logStatus('Humidity: ', result);
+		res.json({ 'result': result });
+	});
+})
+
+myRouter.route('/getPressure')
+.get(function(req, res) {
+	console.log('\n[BLE pressure request]');
+
+	bleDeviceGetPressure((result) => {
+		logStatus('Pressure: ', result);
+		res.json({ 'result': result });
+	});
+})
+
+myRouter.route('/getMagnetometer')
+.get(function(req, res) {
+	console.log('\n[BLE magnetometer request]');
+
+	bleDeviceGetMagnetometer((result) => {
+		logStatus('Magnetometer: ', result);
+		res.send(result);
+	});
+})
+
+myRouter.route('/getGyroscope')
+.get(function(req, res) {
+	console.log('\n[BLE gyroscope request]');
+
+	bleDeviceGetGyroscope((result) => {
+		logStatus('Gyroscope: ', result);
+		res.send(result);
+	});
+})
+
+myRouter.route('/getAccelerometer')
+.get(function(req, res) {
+	console.log('\n[BLE accelerometer request]');
+
+	bleDeviceGetAccelerometer((result) => {
+		logStatus('Accelerometer: ', result);
+		res.send(result);
 	});
 })
 
@@ -678,6 +738,26 @@ function bleDeviceConnect() {
 
 function bleDeviceGetTemperature(callback) {
 	return bleDeviceInvokation('get_temperature', callback);
+}
+
+function bleDeviceGetHumidity(callback) {
+	return bleDeviceInvokation('get_humidity', callback);
+}
+
+function bleDeviceGetPressure(callback) {
+	return bleDeviceInvokation('get_pressure', callback);
+}
+
+function bleDeviceGetMagnetometer(callback) {
+	return bleDeviceInvokation('get_magnetometer', callback);
+}
+
+function bleDeviceGetGyroscope(callback) {
+	return bleDeviceInvokation('get_gyroscope', callback);
+}
+
+function bleDeviceGetAccelerometer(callback) {
+	return bleDeviceInvokation('get_accelerometer', callback);
 }
 
 /***************************************************
