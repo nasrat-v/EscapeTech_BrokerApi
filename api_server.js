@@ -94,6 +94,9 @@ async function initiaTuyaDevices() {
  *
  * *************************************************/
 
+/***** Constants *****/
+const utimeAsyncTriggerRun = 5000;
+
 function initialise() {
   var ble = false;
 
@@ -107,6 +110,8 @@ function initialise() {
   }
   initialiseServer();
   initiaTuyaDevices();
+  console.log("init set interval");
+  var triggerManager = setInterval(asyncTriggerRun, utimeAsyncTriggerRun);
 }
 
 initialise();
@@ -125,21 +130,29 @@ myRouter.route("/").all(function(req, res) {
 });
 
 /*************** TRIGGERS ***************/
+
 myRouter.route("/addTrigger").post(function(req, res) {
-  console.log("Add trigger method called with params", res);
+  var triggeredFct = req.body.triggeredFunction;
+  var triggeringFct = req.body.triggeringFunction;
+  var cmp = req.body.comparator;
+  var val = req.body.value;
+  var arg = req.body.argument;
+
+  console.log(req.body);
+
+  console.log("Add trigger method called with params");
+  addNewTrigger(triggeredFct, triggeringFct, cmp, val, arg);
   res.status(statusSuccess).send({
-    response : "Trigger Added"
+    response: "Trigger Added"
   });
-})
+});
 
 myRouter.route("/getTriggers").post(function(req, res) {
   console.log("Get trigger mothod called with params", res);
   res.status(statusSuccess).send({
-    response : "Trigger lists : inc soon"
-  })
+    response: "Trigger lists : inc soon"
+  });
 });
-
-
 
 /*************** LIGHT ***************/
 
@@ -455,6 +468,93 @@ myRouter.route("/getAccelerometer").get(function(req, res) {
     res.send(result);
   });
 });
+
+/***************************************************
+ *
+ * 					Trigger
+ *
+ * *************************************************/
+
+/***** Constants *****/
+var triggerList = [];
+var baseIntConvert = 10;
+
+function runTriggeringFunction(trigger) {
+  console.log("triggeringFct: " + trigger.triggeringFunction);
+  switch (trigger.triggeringFunction) {
+    case "temperature":
+      console.log("temperature");
+      bleDeviceGetTemperature(result => {
+        checkValueTrigger(result, trigger);
+      });
+      break;
+  }
+}
+
+function checkValueTrigger(result, trigger) {
+  console.log("checkValueTrigger: " + result);
+  var res = parseInt(result, baseIntConvert);
+  var val = parseInt(trigger.value, baseIntConvert);
+
+  console.log(res);
+  console.log(val);
+  switch (trigger.comparator) {
+    case ">":
+      console.log(">");
+      if (res > val) {
+        runTriggeredFunction(trigger);
+      }
+      break;
+    case "<":
+      console.log("<");
+      if (res < val) {
+        runTriggeredFunction(trigger);
+      }
+      break;
+    case "==":
+      console.log("==");
+      if (res == val) {
+        runTriggeredFunction(trigger);
+      }
+      break;
+    case "!=":
+      console.log("!=");
+      if (res != val) {
+        runTriggeredFunction(trigger);
+      }
+      break;
+  }
+}
+
+function runTriggeredFunction(trigger) {
+  console.log("runTriggeredFunction");
+  switch (trigger.triggeredFunction) {
+    case "light":
+      console.log("light: " + trigger.argument);
+      tuyaLightSetColor(trigger.argument);
+      break;
+  }
+}
+
+function addNewTrigger(triggeredFct, triggeringFct, cmp, val, arg) {
+  triggerList.push({
+    index: triggerList.length,
+    triggeredFunction: triggeredFct,
+    triggeringFunction: triggeringFct,
+    comparator: cmp,
+    value: val,
+    argument: arg
+  });
+  console.log("addNewTrigger");
+}
+
+function asyncTriggerRun() {
+  console.log("asyncTriggerRun");
+  triggerList.forEach(trigger => {
+    console.log("new loop");
+    runTriggeringFunction(trigger);
+  });
+}
 
 /***************************************************
  *
