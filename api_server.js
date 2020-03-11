@@ -124,6 +124,23 @@ myRouter.route("/").all(function(req, res) {
   logSchema(deviceLight);
 });
 
+/*************** TRIGGERS ***************/
+myRouter.route("/addTrigger").post(function(req, res) {
+  console.log("Add trigger method called with params", res);
+  res.status(statusSuccess).send({
+    response : "Trigger Added"
+  });
+})
+
+myRouter.route("/getTriggers").post(function(req, res) {
+  console.log("Get trigger mothod called with params", res);
+  res.status(statusSuccess).send({
+    response : "Trigger lists : inc soon"
+  })
+});
+
+
+
 /*************** LIGHT ***************/
 
 myRouter.route("/turnOnLight").get(function(req, res) {
