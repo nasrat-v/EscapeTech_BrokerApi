@@ -1,6 +1,6 @@
 #!/bin/bash
 
-API_SERVER="node api_server.js --ble"
+API_SERVER="node api_server.js --ble --ip $(hostname -i) --port 3000"
 
 while :
 do

@@ -13,6 +13,8 @@ const colorGreen = "\x1b[32m";
 const colorYellow = "\x1b[33m";
 const colorBlue = "\x1b[34m";
 const bleArg = "--ble";
+const ipArg = "--ip";
+const portArg = "--port";
 const statusInternalServerError = 500;
 const statusWrongParameter = 422;
 const statusBadRequest = 404;
@@ -43,21 +45,20 @@ function initialiseBLE() {
  * *************************************************/
 
 /***** Constants *****/
-var apiHostname = "192.168.2.10";
-var apiPort = 3000;
 var app = express();
 var myRouter = express.Router();
 
-async function initialiseServer() {
+async function initialiseServer(apiHostname, apiPort) {
   console.log("API Server initialisation...");
   app.use(cors());
   app.use(bodyParser.urlencoded({ extended: false }));
   app.use(bodyParser.json());
   app.use(myRouter);
-  launchServer();
+  launchServer(apiHostname, apiPort);
 }
 
-function launchServer() {
+function launchServer(apiHostname, apiPort) {
+  apiHostname = apiHostname.split(" ").join("");
   app.listen(apiPort, apiHostname, function() {
     console.log(
       "\nServer launched\nListen on http://" + apiHostname + ":" + apiPort
@@ -99,19 +100,33 @@ const utimeAsyncTriggerRun = 5000;
 
 function initialise() {
   var ble = false;
+  var ipAdress = "";
+  var port = -1;
 
   process.argv.forEach(function(val, index, array) {
     if (val == bleArg) {
       ble = true;
     }
+    if (val == ipArg && process.argv[index + 1] != undefined) {
+      ipAdress = process.argv[index + 1];
+    }
+    if (val == portArg && process.argv[index + 1] != undefined) {
+      port = process.argv[index + 1];
+    }
   });
+  if (ipAdress == "" || port == -1) {
+    console.log(
+      "Usage: " + process.argv[0] + " " + process.argv[1] + " local_ip_adress"
+    );
+    return;
+  }
   if (ble) {
     initialiseBLE();
   }
-  initialiseServer();
+  initialiseServer(ipAdress, port);
   initiaTuyaDevices();
-  console.log("init set interval");
-  var triggerManager = setInterval(asyncTriggerRun, utimeAsyncTriggerRun);
+  // trigger manager
+  setInterval(asyncTriggerRun, utimeAsyncTriggerRun);
 }
 
 initialise();
@@ -138,19 +153,31 @@ myRouter.route("/addTrigger").post(function(req, res) {
   var val = req.body.value;
   var arg = req.body.argument;
 
+  console.log("Add trigger method called with params: ");
   console.log(req.body);
-
-  console.log("Add trigger method called with params");
   addNewTrigger(triggeredFct, triggeringFct, cmp, val, arg);
   res.status(statusSuccess).send({
-    response: "Trigger Added"
+    response: "Trigger added"
   });
 });
 
-myRouter.route("/getTriggers").post(function(req, res) {
-  console.log("Get trigger mothod called with params", res);
+myRouter.route("/deleteTrigger").post(function(req, res) {
+  var id = req.body.id;
+
+  console.log("Delete trigger method called with params: ");
+  console.log(req.body);
+  deleteTrigger(id);
   res.status(statusSuccess).send({
-    response: "Trigger lists : inc soon"
+    response: "Trigger deleted"
+  });
+});
+
+myRouter.route("/getTriggers").get(function(req, res) {
+  var list = getTriggerList();
+
+  console.log("Get trigger method called");
+  res.status(statusSuccess).send({
+    response: list
   });
 });
 
@@ -477,48 +504,92 @@ myRouter.route("/getAccelerometer").get(function(req, res) {
 
 /***** Constants *****/
 var triggerList = [];
-var baseIntConvert = 10;
+const baseIntConvert = 10;
+const uTimer = 30000;
+const intensityLed = 13;
+const speedLed = 40;
+const staticLed = 0;
 
-function runTriggeringFunction(trigger) {
-  console.log("triggeringFct: " + trigger.triggeringFunction);
+async function runTriggeringFunction(trigger) {
   switch (trigger.triggeringFunction) {
     case "temperature":
-      console.log("temperature");
       bleDeviceGetTemperature(result => {
-        checkValueTrigger(result, trigger);
+        checkIntegerValueTrigger(result, trigger);
       });
+      break;
+    case "pressure":
+      bleDeviceGetPressure(result => {
+        checkIntegerValueTrigger(result, trigger);
+      });
+      break;
+    case "humidity":
+      bleDeviceGetHumidity(result => {
+        checkIntegerValueTrigger(result, trigger);
+      });
+      break;
+    case "gyroscope":
+      bleDeviceGetGyroscope(result => {
+        checkIntegerValueTrigger(result, trigger);
+      });
+      break;
+    case "accelerometer":
+      bleDeviceGetAccelerometer(result => {
+        checkIntegerValueTrigger(result, trigger);
+      });
+      break;
+    case "magnetometer":
+      bleDeviceGetMagnetometer(result => {
+        checkIntegerValueTrigger(result, trigger);
+      });
+    case "lightStatus":
+      var result = await tuyaLightGetStatus();
+      checkBooleanValueTrigger(result, trigger);
+      break;
+    case "socketStatus":
+      var result = await tuyaSocketGetStatus();
+      checkBooleanValueTrigger(result, trigger);
       break;
   }
 }
 
-function checkValueTrigger(result, trigger) {
-  console.log("checkValueTrigger: " + result);
+function checkBooleanValueTrigger(result, trigger) {
+  var val = trigger.value;
+  var status = "default";
+
+  if (val == "true") {
+    console.log("is true");
+    status = true;
+  } else if (val == "false") {
+    status = false;
+  }
+  console.log(result);
+  console.log(status);
+  if (result == status) {
+    runTriggeredFunction(trigger);
+  }
+}
+
+function checkIntegerValueTrigger(result, trigger) {
   var res = parseInt(result, baseIntConvert);
   var val = parseInt(trigger.value, baseIntConvert);
 
-  console.log(res);
-  console.log(val);
   switch (trigger.comparator) {
     case ">":
-      console.log(">");
       if (res > val) {
         runTriggeredFunction(trigger);
       }
       break;
     case "<":
-      console.log("<");
       if (res < val) {
         runTriggeredFunction(trigger);
       }
       break;
     case "==":
-      console.log("==");
       if (res == val) {
         runTriggeredFunction(trigger);
       }
       break;
     case "!=":
-      console.log("!=");
       if (res != val) {
         runTriggeredFunction(trigger);
       }
@@ -527,31 +598,95 @@ function checkValueTrigger(result, trigger) {
 }
 
 function runTriggeredFunction(trigger) {
-  console.log("runTriggeredFunction");
+  var arg = trigger.argument;
+
   switch (trigger.triggeredFunction) {
-    case "light":
-      console.log("light: " + trigger.argument);
-      tuyaLightSetColor(trigger.argument);
+    case "lightStatus":
+      runTriggeredFuncLight(arg);
       break;
+    case "socketStatus":
+      runTriggeredFuncSocket(arg);
+      break;
+    case "ledMessenger":
+      ledMessengerSetStatus(arg, intensityLed, speedLed, staticLed);
+      break;
+  }
+}
+
+function runTriggeredFuncLight(arg) {
+  var status = "default";
+
+  if (arg == "true") {
+    status = true;
+  } else if ("false") {
+    status = false;
+  } else {
+    status = arg;
+  }
+  if (status == true || status == false) {
+    tuyaLightSetStatus(status);
+  } else if (status === "flash") {
+    tuyaLightSetFlash(uTimer);
+  } else {
+    tuyaLightSetColor(status);
+  }
+}
+
+function runTriggeredFuncSocket(arg) {
+  var status = "default";
+
+  if (arg == "true") {
+    status = true;
+  } else if ("false") {
+    status = false;
+  } else {
+    status = arg;
+  }
+  if (status == true || status == false) {
+    tuyaSocketSetStatus(status);
+  } else if (status === "flash") {
+    tuyaSocketSetFlash(uTimer);
+  } else {
+    tuyaSocketSetColor(status);
   }
 }
 
 function addNewTrigger(triggeredFct, triggeringFct, cmp, val, arg) {
   triggerList.push({
-    index: triggerList.length,
+    id: getLastTriggerId() + 1,
     triggeredFunction: triggeredFct,
     triggeringFunction: triggeringFct,
     comparator: cmp,
     value: val,
     argument: arg
   });
-  console.log("addNewTrigger");
+}
+
+function deleteTrigger(id) {
+  var nb = 0;
+  var int_id = parseInt(id, baseIntConvert);
+
+  triggerList.forEach(trigger => {
+    if (trigger.id == int_id) {
+      triggerList.splice(nb, 1);
+    }
+    nb++;
+  });
+}
+
+function getLastTriggerId() {
+  if (triggerList.length == 0) {
+    return -1;
+  }
+  return triggerList[triggerList.length - 1].id;
+}
+
+function getTriggerList() {
+  return triggerList;
 }
 
 function asyncTriggerRun() {
-  console.log("asyncTriggerRun");
   triggerList.forEach(trigger => {
-    console.log("new loop");
     runTriggeringFunction(trigger);
   });
 }
@@ -630,10 +765,11 @@ async function tuyaDeviceSetFlash(uTimer, uFlashTimer, device, dpsNum) {
   var startSimulateTime = Date.now();
   const startTime = Date.now();
 
+  // time of the flash
   while (Date.now() - startTime <= uTimer) {
     startSimulateTime = Date.now();
     newStatus = !newStatus;
-
+    // time between turnOn and turnOff (macro)
     while (Date.now() - startSimulateTime <= uFlashTimer);
     currentStatus = await tuyaDeviceSetStatus(newStatus, device, dpsNum);
   }
