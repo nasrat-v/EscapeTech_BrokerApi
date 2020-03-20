@@ -2,8 +2,16 @@
 var superagent = require("superagent");
 
 /***** Constants *****/
-const ledMessengerIp = "192.168.2.3";
-const ledMessengerUrl = "http://" + ledMessengerIp + "/";
+const tuyaError = "Bad Color";
+const colorReset = "\x1b[0m";
+const colorRed = "\x1b[31m";
+const colorGreen = "\x1b[32m";
+const colorYellow = "\x1b[33m";
+const colorBlue = "\x1b[34m";
+
+/***** Globals *****/
+var ledMessengerIp = "";
+var ledMessengerUrl = "";
 
 /***************************************************
  *
@@ -11,8 +19,17 @@ const ledMessengerUrl = "http://" + ledMessengerIp + "/";
  *
  * *************************************************/
 
+function _setIpAdress(ip) {
+  ledMessengerIp = ip;
+  ledMessengerUrl = "http://" + ledMessengerIp + "/";
+}
+
 async function _setStatus(msg, its, spd, stc) {
   var result;
+
+  if (ledMessengerIp == "" || ledMessengerUrl == "") {
+    return;
+  }
 
   console.log(`Set message: ${colorBlue}'%s'${colorReset}`, `${msg}`);
   console.log(`Set intensity: ${its}`);
@@ -28,5 +45,6 @@ async function _setStatus(msg, its, spd, stc) {
 }
 
 module.exports = {
+  setIpAdress: _setIpAdress,
   setStatus: _setStatus
 };

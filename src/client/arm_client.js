@@ -3,7 +3,6 @@ var net = require("net");
 
 /***** Globals *****/
 var armClient = new net.Socket();
-const _armSuccess = "OK";
 
 /***************************************************
  *
@@ -29,27 +28,28 @@ function _initialise(ipAdress, port) {
  *
  * *************************************************/
 
-function serverInvokation(funcName) {
-  armClient.write(funcName);
-}
+function serverInvokation(funcName, callback) {
+  armClient.on("data", result => {
+    var res = result
+      .toString()
+      .split(" ")
+      .join("");
 
-function _setEventListener(callback) {
-  armClient.on("data", result =>
-    callback(
-      result
-        .toString()
-        .split(" ")
-        .join("")
-    )
-  );
+    if (callback) {
+      callback(res);
+      callback = null;
+      return;
+    }
+  });
+  armClient.write(funcName);
 }
 
 function _turnOnLed() {
   return serverInvokation("ledOn");
 }
 
-async function _turnOffLed(callback) {
-  return serverInvokation("ledOff", callback);
+async function _turnOffLed() {
+  return serverInvokation("ledOff");
 }
 
 function _getTemperature(callback) {
@@ -77,9 +77,7 @@ function _isMoving(callback) {
 }
 
 module.exports = {
-  armSuccess: _armSuccess,
   initialise: _initialise,
-  setEventListener: _setEventListener,
   turnOnLed: _turnOnLed,
   turnOffLed: _turnOffLed,
   getTemperature: _getTemperature,

@@ -26,10 +26,21 @@ const statusSuccess = 200;
 var app = express();
 var myRouter = express.Router();
 
-async function initialiseServer(apiHostname, apiPort) {
+async function initialiseServer(
+  apiHostname,
+  apiPort,
+  dashboardHostname,
+  dashboardPort
+) {
   console.log("API Server initialisation...");
 
-  app.use(cors());
+  if (dashboardHostname != "" && dashboardPort != -1) {
+    app.use(
+      cors({ origin: "http://" + dashboardHostname + ":" + dashboardPort })
+    );
+  } else {
+    app.use(cors());
+  }
   app.use(bodyParser.urlencoded({ extended: false }));
   app.use(bodyParser.json());
   app.use(myRouter);
@@ -43,6 +54,17 @@ function launchServer(apiHostname, apiPort) {
       "\nServer launched\nListen on http://" + apiHostname + ":" + apiPort
     );
   });
+}
+
+/***************************************************
+ *
+ * 					Init Led Messenger
+ *
+ * *************************************************/
+
+function initialiseLedMessenger(ipAdress) {
+  console.log("LED Messenger initialisation...");
+  ledMessengerClient.setIpAdress(ipAdress);
 }
 
 /***************************************************
@@ -74,6 +96,9 @@ const ipArmArg = "--ipArm";
 const portArmArg = "--portArm";
 const ipApiArg = "--ipApi";
 const portApiArg = "--portApi";
+const ipDashboardArg = "--ipDashboard";
+const portDashboardArg = "--portDashboard";
+const ipLedMessengerArg = "--ipLedMessenger";
 const helpArg = "--help";
 
 function paramsFactory() {
@@ -84,6 +109,9 @@ function paramsFactory() {
     portBle: -1,
     ipArm: "",
     portArm: -1,
+    ipDashboard: "",
+    portDashboard: -1,
+    ipLedMessenger: "",
     tuya: false
   };
 }
@@ -129,6 +157,20 @@ function parseParams() {
           args.portApi = process.argv[index + 1];
         }
         break;
+      case ipDashboardArg:
+        if (process.argv[index + 1] != undefined) {
+          args.ipDashboard = process.argv[index + 1];
+        }
+        break;
+      case portDashboardArg:
+        if (process.argv[index + 1] != undefined) {
+          args.portDashboard = process.argv[index + 1];
+        }
+      case ipLedMessengerArg:
+        if (process.argv[index + 1] != undefined) {
+          args.ipLedMessenger = process.argv[index + 1];
+        }
+        break;
     }
   });
   return args;
@@ -142,6 +184,8 @@ function checkOptions() {
     console.log("--ipApi [ip_adress] --portApi [port]");
     console.log("--ipBle [ip_adress] --portBle [port]");
     console.log("--ipArm [ip_adress] --portArm [port]");
+    console.log("--ipDashboard [ip_adress] --portDashboard [port]");
+    console.log("--ipLedMessenger [ip_adress]");
     return -1;
   }
   if (args.ipApi == "" || args.portApi == -1) {
@@ -166,7 +210,15 @@ function initialise() {
     if (args.tuya) {
       initialiseTuyaDevices();
     }
-    initialiseServer(args.ipApi, args.portApi);
+    initialiseServer(
+      args.ipApi,
+      args.portApi,
+      args.ipDashboard,
+      args.portDashboard
+    );
+    if (args.ipLedMessenger != "") {
+      initialiseLedMessenger(args.ipLedMessenger);
+    }
     // trigger manager
     setInterval(trigger.asyncRun, utimeAsyncTriggerRun);
   }

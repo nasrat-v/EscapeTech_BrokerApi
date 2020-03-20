@@ -2,6 +2,7 @@
 var tuyaLightClient = require("../client/tuya_light_client.js");
 var tuyaSocketClient = require("../client/tuya_socket_client.js");
 var bleClient = require("../client/ble_client.js");
+var armClient = require("../client/arm_client.js");
 
 /***** Constants *****/
 const baseIntConvert = 10;
@@ -58,19 +59,43 @@ async function runTriggeringFunction(trigger) {
       var result = await tuyaSocketClient.getStatus();
       checkBooleanValueTrigger(result, trigger);
       break;
+    case "armIsMagnet":
+      armClient.isMagnet(result => {
+        checkBooleanValueTrigger(result, trigger);
+      });
+      break;
+    case "armIsHorizontal":
+      armClient.isHorizontal(result => {
+        checkBooleanValueTrigger(result, trigger);
+      });
+      break;
+    case "armIsMoving":
+      armClient.isMoving(result => {
+        console.log(result);
+        checkBooleanValueTrigger(result, trigger);
+      });
+      break;
   }
 }
 
 function checkBooleanValueTrigger(result, trigger) {
   var val = trigger.value;
+  var res = result;
   var status = "default";
 
-  if (val == "true") {
+  if (val === "true") {
     status = true;
-  } else if (val == "false") {
+  } else if (val === "false") {
     status = false;
   }
-  if (result == status) {
+  if (result === "YES") {
+    res = true;
+  } else if (result === "NO") {
+    res = false;
+  }
+  console.log(status);
+  if (res == status) {
+    console.log("ok");
     runTriggeredFunction(trigger);
   }
 }
@@ -108,6 +133,7 @@ function runTriggeredFunction(trigger) {
 
   switch (trigger.triggeredFunction) {
     case "lightStatus":
+      console.log("light");
       runTriggeredFuncLight(arg);
       break;
     case "socketStatus":
@@ -116,15 +142,33 @@ function runTriggeredFunction(trigger) {
     case "ledMessenger":
       ledMessengerSetStatus(arg, intensityLed, speedLed, staticLed);
       break;
+    case "armLedStatus":
+      runTriggeredFuncArm(arg);
+  }
+}
+
+function runTriggeredFuncArm(arg) {
+  var status = "default";
+
+  if (arg === "true") {
+    status = true;
+  } else if (arg === "false") {
+    status = false;
+  }
+  if (status == true) {
+    armClient.turnOnLed();
+  } else if (status == false) {
+    armClient.turnOffLed();
   }
 }
 
 function runTriggeredFuncLight(arg) {
   var status = "default";
 
-  if (arg == "true") {
+  console.log(status);
+  if (arg === "true") {
     status = true;
-  } else if (arg == "false") {
+  } else if (arg === "false") {
     status = false;
   } else {
     status = arg;
@@ -141,9 +185,9 @@ function runTriggeredFuncLight(arg) {
 function runTriggeredFuncSocket(arg) {
   var status = "default";
 
-  if (arg == "true") {
+  if (arg === "true") {
     status = true;
-  } else if (arg == "false") {
+  } else if (arg === "false") {
     status = false;
   } else {
     status = arg;
