@@ -11,6 +11,6 @@ TUYA_ARGS="--tuya"
 while :
 do
     echo "///////////////////  New launch at `date` \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\"
-    ${RUN_SERVER} ${API_ARGS} ${TUYA_ARGS} ${BLE_ARGS} ${DASHBOARD_ARGS} ${ARM_ARGS} ${LED_MSG_ARGS}
+    ${RUN_SERVER} ${API_ARGS} ${BLE_ARGS} ${TUYA_ARGS} ${DASHBOARD_ARGS} ${LED_MSG_ARGS}
     sleep 3
 done
